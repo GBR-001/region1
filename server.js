@@ -134,30 +134,29 @@ function findRegion(text) {
  * If the user already has a region → apply immediately.
  * If not → buffer the gift for up to PENDING_TTL ms.
  */
-function checkThreshold(coins) {
-  const matches = (state.thresholdMultipliers || []).filter(tm => coins >= tm.coins);
+// perUnit = single gift item value (diamondCount), used for threshold check
+// so 10x Rose (1 diamond each) doesn't trigger a "100 coin" threshold
+function checkThreshold(perUnit) {
+  const matches = (state.thresholdMultipliers || []).filter(tm => perUnit >= tm.coins);
   if (matches.length === 0) return;
   const best = matches.sort((a, b) => b.value - a.value)[0];
   if (!state.multiplier.active || best.value >= state.multiplier.value)
     activateMultiplier(best.value, best.duration);
 }
 
-function onGift(username, coins) {
+function onGift(username, coins, perUnit = coins) {
   if (state.status !== 'active') return;
 
   const region = state.userRegions[username];
   if (region) {
-    // 1. Apply gift at CURRENT multiplier (x1 if none active)
     applyGift(username, coins, region);
-    // 2. Only THEN activate threshold multiplier for NEXT gifts
-    checkThreshold(coins);
+    checkThreshold(perUnit);
     return;
   }
-  // No region yet — store the multiplier AT TIME OF GIFT so flush uses it, not the boosted one
   const multAtGiftTime = state.multiplier.active ? state.multiplier.value : 1;
   if (!pendingGifts[username]) pendingGifts[username] = [];
   pendingGifts[username].push({ coins, ts: Date.now(), mult: multAtGiftTime });
-  checkThreshold(coins);
+  checkThreshold(perUnit);
   console.log(`[GIFT] ${username} (${coins}) – buffered, waiting for region comment`);
 }
 
@@ -253,8 +252,9 @@ function connectTikTok(username, sessionId, signingKey, ttIdc) {
     } else {
       console.log(`[GIFT_RAW] single user=${user} giftType=${data.giftType} diamondCount=${data.diamondCount} repeatCount=${data.repeatCount} giftName=${data.giftName}`);
     }
-    const coins = (data.diamondCount || 1) * (data.repeatCount || 1);
-    onGift(user, coins);
+    const perUnit = data.diamondCount || 1;
+    const coins   = perUnit * (data.repeatCount || 1);
+    onGift(user, coins, perUnit);
   });
 
   tiktokConnection.on('chat', data => {
