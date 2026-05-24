@@ -38,6 +38,19 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ─── PERSIST MULTIPLIER SETTINGS ──────────────────────────
+const MULT_FILE = path.join(__dirname, 'multipliers.json');
+function loadMultSettings() {
+  try { return JSON.parse(fs.readFileSync(MULT_FILE, 'utf8')); } catch { return {}; }
+}
+function saveMultSettings() {
+  try { fs.writeFileSync(MULT_FILE, JSON.stringify({
+    periodic : state.periodicMultipliers,
+    threshold: state.thresholdMultipliers,
+  })); } catch(e) { console.error('[MULT] save error:', e.message); }
+}
+const _savedMult = loadMultSettings();
+
 // ─── GAME STATE ────────────────────────────────────────────
 const state = {
   status              : 'idle',   // idle | active | paused | done
@@ -54,9 +67,9 @@ const state = {
   mvp                 : null,     // { user, coins }
   tiktokConnected     : false,
   multiplier          : { active: false, value: 1, timeLeft: 0 },
-  regionMultipliers   : {},   // { 'region': { value, timeLeft } } — per-region (threshold-triggered)
-  periodicMultipliers : [],   // [{ atSecond, value, duration }]
-  thresholdMultipliers: [],   // [{ coins, value, duration }]
+  regionMultipliers   : {},
+  periodicMultipliers : _savedMult.periodic  || [],
+  thresholdMultipliers: _savedMult.threshold || [],
 };
 
 let timerInterval    = null;
@@ -92,6 +105,7 @@ function activateMultiplier(value, duration) {
 function activateRegionMultiplier(region, value, duration) {
   state.regionMultipliers[region] = { value, timeLeft: duration };
   console.log(`[MULT-REGION] ${region} x${value} for ${duration}s`);
+  broadcast();
 }
 
 // ─── PENDING GIFTS BUFFER ──────────────────────────────────
@@ -145,9 +159,10 @@ function findRegion(text) {
  */
 // Threshold triggers a PER-REGION multiplier — only the sender's region gets boosted
 function checkThreshold(perUnit, region) {
+  console.log(`[THRESH] perUnit=${perUnit} region=${region} rules=${JSON.stringify(state.thresholdMultipliers)}`);
   if (!region) return;
   const matches = (state.thresholdMultipliers || []).filter(tm => perUnit >= tm.coins);
-  if (matches.length === 0) return;
+  if (matches.length === 0) { console.log(`[THRESH] no match (perUnit=${perUnit})`); return; }
   const best = matches.sort((a, b) => b.value - a.value)[0];
   const existing = state.regionMultipliers[region];
   if (!existing || best.value >= existing.value)
@@ -418,6 +433,9 @@ app.post('/api/set-multipliers', (req, res) => {
   const { periodic, threshold } = req.body;
   if (Array.isArray(periodic))   state.periodicMultipliers  = periodic;
   if (Array.isArray(threshold))  state.thresholdMultipliers = threshold;
+  saveMultSettings();
+  console.log('[MULT] settings saved — periodic:', state.periodicMultipliers.length, 'threshold:', state.thresholdMultipliers.length);
+  console.log('[MULT] thresholds:', JSON.stringify(state.thresholdMultipliers));
   broadcast();
   res.json({ ok: true });
 });
