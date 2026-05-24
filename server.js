@@ -40,19 +40,22 @@ app.get('/', (req, res) => {
 
 // ─── GAME STATE ────────────────────────────────────────────
 const state = {
-  status         : 'idle',   // idle | active | paused | done
-  regions        : ['იმერეთი','კახეთი','აჭარა','გურია','სვანეთი','სამეგრელო','ქართლი','ჰერეთი','რაჭა'],
-  regionScores   : {},       // { 'იმერეთი': 340, ... }
-  userScores     : {},       // { 'user123': 100, ... }
-  userRegions    : {},       // { 'user123': 'იმერეთი', ... }
-  donations      : [],       // last 20 for live feed
-  aliases        : {},       // { 'იმერ': 'იმერეთი', ... }
-  rshPrefix      : 'RSH:',  // customizable region-change command
-  duration       : 120,
-  timeLeft       : 0,
-  tiktokUsername : '',
-  mvp            : null,     // { user, coins }
-  tiktokConnected: false,
+  status              : 'idle',   // idle | active | paused | done
+  regions             : ['იმერეთი','კახეთი','აჭარა','გურია','სვანეთი','სამეგრელო','ქართლი','ჰერეთი','რაჭა'],
+  regionScores        : {},       // { 'იმერეთი': 340, ... }
+  userScores          : {},       // { 'user123': 100, ... }
+  userRegions         : {},       // { 'user123': 'იმერეთი', ... }
+  donations           : [],       // last 20 for live feed
+  aliases             : {},       // { 'იმერ': 'იმერეთი', ... }
+  rshPrefix           : 'RSH:',  // customizable region-change command
+  duration            : 120,
+  timeLeft            : 0,
+  tiktokUsername      : '',
+  mvp                 : null,     // { user, coins }
+  tiktokConnected     : false,
+  multiplier          : { active: false, value: 1, timeLeft: 0 },
+  periodicMultipliers : [],   // [{ atSecond, value, duration }]
+  thresholdMultipliers: [],   // [{ coins, value, duration }]
 };
 
 let timerInterval    = null;
@@ -65,6 +68,7 @@ function initScores() {
   state.userRegions  = {};
   state.donations    = [];
   state.mvp          = null;
+  state.multiplier   = { active: false, value: 1, timeLeft: 0 };
   state.regions.forEach(r => (state.regionScores[r] = 0));
   Object.keys(pendingGifts).forEach(k => delete pendingGifts[k]);
 }
@@ -77,6 +81,11 @@ function updateMvp() {
 }
 
 function broadcast() { io.emit('gameUpdate', publicState()); }
+
+function activateMultiplier(value, duration) {
+  state.multiplier = { active: true, value, timeLeft: duration };
+  console.log(`[MULT] x${value} for ${duration}s`);
+}
 
 // ─── PENDING GIFTS BUFFER ──────────────────────────────────
 // TikTok sends gift events BEFORE chat events.
@@ -94,12 +103,14 @@ function flushPending(username, region) {
 }
 
 function applyGift(username, coins, region, silent = false) {
-  state.regionScores[region] = (state.regionScores[region] || 0) + coins;
-  state.userScores[username] = (state.userScores[username] || 0) + coins;
+  const mult = state.multiplier.active ? state.multiplier.value : 1;
+  const effective = coins * mult;
+  state.regionScores[region] = (state.regionScores[region] || 0) + effective;
+  state.userScores[username] = (state.userScores[username] || 0) + effective;
   updateMvp();
-  state.donations.unshift({ username, coins, region, time: new Date().toLocaleTimeString() });
+  state.donations.unshift({ username, coins: effective, region, time: new Date().toLocaleTimeString(), mult: mult > 1 ? mult : null });
   if (state.donations.length > 20) state.donations.pop();
-  if (!silent) console.log(`[GIFT] ${username} → ${region} +${coins}`);
+  if (!silent) console.log(`[GIFT] ${username} → ${region} +${coins}${mult > 1 ? ` x${mult}=${effective}` : ''}`);
   broadcast();
 }
 
@@ -124,6 +135,15 @@ function findRegion(text) {
  */
 function onGift(username, coins) {
   if (state.status !== 'active') return;
+
+  // Check threshold multipliers — activate the highest matching one
+  const matches = (state.thresholdMultipliers || []).filter(tm => coins >= tm.coins);
+  if (matches.length > 0) {
+    const best = matches.sort((a, b) => b.value - a.value)[0];
+    if (!state.multiplier.active || best.value >= state.multiplier.value)
+      activateMultiplier(best.value, best.duration);
+  }
+
   const region = state.userRegions[username];
   if (region) {
     applyGift(username, coins, region);
@@ -304,9 +324,24 @@ app.post('/api/start', (req, res) => {
   timerInterval = setInterval(() => {
     if (state.status !== 'active') return;
     state.timeLeft--;
+
+    // Tick active multiplier countdown
+    if (state.multiplier.active) {
+      state.multiplier.timeLeft--;
+      if (state.multiplier.timeLeft <= 0)
+        state.multiplier = { active: false, value: 1, timeLeft: 0 };
+    }
+
+    // Fire periodic multipliers at the configured second
+    (state.periodicMultipliers || []).forEach(pm => {
+      if (state.timeLeft === pm.atSecond)
+        activateMultiplier(pm.value, pm.duration);
+    });
+
     if (state.timeLeft <= 0) {
       clearInterval(timerInterval);
-      state.status = 'done';
+      state.status   = 'done';
+      state.multiplier = { active: false, value: 1, timeLeft: 0 };
       disconnectTikTok();
     }
     broadcast();
@@ -338,6 +373,15 @@ app.post('/api/reset', (req, res) => {
   initScores();
   state.status   = 'idle';
   state.timeLeft = 0;
+  broadcast();
+  res.json({ ok: true });
+});
+
+// POST /api/set-multipliers { periodic, threshold }
+app.post('/api/set-multipliers', (req, res) => {
+  const { periodic, threshold } = req.body;
+  if (Array.isArray(periodic))   state.periodicMultipliers  = periodic;
+  if (Array.isArray(threshold))  state.thresholdMultipliers = threshold;
   broadcast();
   res.json({ ok: true });
 });

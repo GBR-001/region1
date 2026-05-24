@@ -244,6 +244,10 @@ button:active{transform:scale(.97)}
       <span class="info-label">მონაწილე</span>
       <span id="player-count" class="info-val">0</span>
     </div>
+    <div class="info-row">
+      <span class="info-label">⚡ მულტი</span>
+      <span id="mult-status" class="info-val" style="color:var(--muted)">—</span>
+    </div>
   </div>
 
   <div class="card">
@@ -265,6 +269,29 @@ button:active{transform:scale(.97)}
       <button class="btn-stop" onclick="stopGame()">⏹ გაჩერება</button>
       <button class="btn-reset" onclick="resetGame()" style="padding:11px 12px">↺</button>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>⚡ მულტიპლიკატორი</h2>
+
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.05em">პერიოდული — დროის მიხედვით</div>
+    <div class="note" style="margin-bottom:8px;font-size:10px">
+      <strong>წამი</strong> = თამაშის რა წამს ჩაირთოს (მაგ: 60) &nbsp;|&nbsp; <strong>x</strong> = მამრავლი &nbsp;|&nbsp; <strong>ხ.</strong> = რამდენი წამი
+    </div>
+    <div id="periodic-list"></div>
+    <button class="btn-add" onclick="addPeriodic()">+ პერიოდული</button>
+
+    <div style="height:1px;background:var(--border);margin:12px 0"></div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.05em">ბონუსი — ქოინების მიხედვით</div>
+    <div class="note" style="margin-bottom:8px;font-size:10px">
+      თუ ერთ დარტყამაში <strong>≥ X ქ.</strong> — ავტომატურად ჩაირთება
+    </div>
+    <div id="threshold-list"></div>
+    <button class="btn-add" onclick="addThreshold()">+ ბონუსი</button>
+
+    <button class="btn-start" onclick="saveMultipliers()" style="margin-top:10px;font-size:14px;padding:11px">💾 შენახვა</button>
+    <div id="mult-cfg-msg" style="font-size:11px;color:var(--green);min-height:16px;margin-top:5px"></div>
   </div>
 
   <div class="card">
@@ -570,6 +597,14 @@ function syncAdmin(s){
     if(pe)pe.textContent=s.rshPrefix+' კახეთი';
   }
 
+  const ms=document.getElementById('mult-status');
+  if(ms){
+    if(s.multiplier&&s.multiplier.active){
+      ms.textContent=`X${s.multiplier.value} — ${s.multiplier.timeLeft}წმ`;
+      ms.style.color='var(--gold)';
+    } else {ms.textContent='—';ms.style.color='var(--muted)';}
+  }
+
   const sorted=sortR(s);
   const maxC=Math.max(...sorted.map(r=>r.c),1);
   document.getElementById('mini-lb').innerHTML=sorted.map((r,i)=>`
@@ -594,6 +629,54 @@ function syncAdmin(s){
         <span class="fi-r">${d.region}</span>
       </div>`).join('');
   }
+}
+
+// ── Multipliers ───────────────────────────────────────────
+let periodicMults=[];   // [{atSecond,value,duration}]
+let thresholdMults=[];  // [{coins,value,duration}]
+
+function renderPeriodicList(){
+  document.getElementById('periodic-list').innerHTML=periodicMults.map((p,i)=>`
+    <div class="ri" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">წამი:</span>
+      <input type="number" value="${p.atSecond}" min="0" style="width:58px;flex:none"
+             oninput="periodicMults[${i}].atSecond=+this.value"/>
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">x</span>
+      <input type="number" value="${p.value}" min="2" max="10" style="width:48px;flex:none"
+             oninput="periodicMults[${i}].value=+this.value"/>
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">ხ.:</span>
+      <input type="number" value="${p.duration}" min="1" style="width:52px;flex:none"
+             oninput="periodicMults[${i}].duration=+this.value"/>
+      <span style="font-size:10px;color:var(--muted);flex-shrink:0">წმ</span>
+      <button class="btn-del" onclick="periodicMults.splice(${i},1);renderPeriodicList()">×</button>
+    </div>`).join('')||'<p style="font-size:11px;color:var(--muted);margin-bottom:6px">არ არის დამატებული</p>';
+}
+function addPeriodic(){periodicMults.push({atSecond:60,value:2,duration:10});renderPeriodicList();}
+
+function renderThresholdList(){
+  document.getElementById('threshold-list').innerHTML=thresholdMults.map((t,i)=>`
+    <div class="ri" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">≥</span>
+      <input type="number" value="${t.coins}" min="1" style="width:62px;flex:none"
+             oninput="thresholdMults[${i}].coins=+this.value"/>
+      <span style="font-size:10px;color:var(--muted);flex-shrink:0">ქ. → x</span>
+      <input type="number" value="${t.value}" min="2" max="10" style="width:48px;flex:none"
+             oninput="thresholdMults[${i}].value=+this.value"/>
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">ხ.:</span>
+      <input type="number" value="${t.duration}" min="1" style="width:52px;flex:none"
+             oninput="thresholdMults[${i}].duration=+this.value"/>
+      <span style="font-size:10px;color:var(--muted);flex-shrink:0">წმ</span>
+      <button class="btn-del" onclick="thresholdMults.splice(${i},1);renderThresholdList()">×</button>
+    </div>`).join('')||'<p style="font-size:11px;color:var(--muted);margin-bottom:6px">არ არის დამატებული</p>';
+}
+function addThreshold(){thresholdMults.push({coins:100,value:2,duration:10});renderThresholdList();}
+
+async function saveMultipliers(){
+  const r=await api('/api/set-multipliers',{periodic:periodicMults,threshold:thresholdMults});
+  const el=document.getElementById('mult-cfg-msg');
+  el.textContent=r?.ok?'✓ შენახულია':'⚠ შეცდომა';
+  el.style.color=r?.ok?'var(--green)':'var(--orange)';
+  setTimeout(()=>el.textContent='',2500);
 }
 
 // ── TikTok ────────────────────────────────────────────────
@@ -732,6 +815,8 @@ function lsLoad(){
 renderRegionList();
 renderAliasList();
 renderPresets();
+renderPeriodicList();
+renderThresholdList();
 document.getElementById('dur-p').textContent=fmt(120);
 lsLoad();
 
@@ -747,6 +832,8 @@ fetch('/api/state').then(r=>r.json()).then(s=>{
   renderRegionList();
   renderAliasList();
   populateTransferRegions();
+  if(s.periodicMultipliers){periodicMults=s.periodicMultipliers;renderPeriodicList();}
+  if(s.thresholdMultipliers){thresholdMults=s.thresholdMultipliers;renderThresholdList();}
   syncAdmin(s);
 });
 </script>

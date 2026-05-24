@@ -105,6 +105,24 @@ body{
 .fi-c{color:var(--gold);font-weight:700}
 .fi-r{color:var(--accent)}
 
+/* ── Multiplier banner ── */
+#mult-banner{
+  display:none;
+  background:linear-gradient(135deg,rgba(245,197,66,.18),rgba(251,146,60,.18));
+  border:2px solid rgba(245,197,66,.55);
+  border-radius:14px;padding:12px 16px;text-align:center;
+  animation:multPulse 1.2s ease-in-out infinite alternate;
+  flex-shrink:0;
+}
+#mult-banner.show{display:block}
+.mult-val{font-size:clamp(32px,10vw,48px);font-weight:800;line-height:1;
+  color:var(--gold);letter-spacing:.02em}
+.mult-sub{font-size:12px;color:var(--orange);margin-top:3px;font-weight:600}
+@keyframes multPulse{
+  from{box-shadow:0 0 0 0 rgba(245,197,66,0)}
+  to  {box-shadow:0 0 24px 6px rgba(245,197,66,.28)}
+}
+
 /* ── Results overlay ── */
 #res-overlay{
   display:none;position:fixed;
@@ -149,6 +167,12 @@ body{
 </style>
 </head>
 <body>
+
+<div id="mult-banner">
+  <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:3px">⚡ მულტიპლიკატორი</div>
+  <div class="mult-val" id="mult-val-disp">X2</div>
+  <div class="mult-sub" id="mult-time-disp">10 წამი</div>
+</div>
 
 <div id="mvp">
   <div class="mvp-lbl">🏆 MVP</div>
@@ -213,6 +237,13 @@ function syncUI(s){
     td.style.color=s.timeLeft<=10?'var(--red)':s.timeLeft<=30?'var(--gold)':'var(--text)';
     tl.textContent=s.status==='paused'?'პაუზა':'დარჩა';
   } else { td.textContent='—';tl.textContent='—'; }
+
+  const mb=document.getElementById('mult-banner');
+  if(s.multiplier&&s.multiplier.active){
+    mb.classList.add('show');
+    document.getElementById('mult-val-disp').textContent='X'+s.multiplier.value;
+    document.getElementById('mult-time-disp').textContent=s.multiplier.timeLeft+' წამი';
+  } else mb.classList.remove('show');
 
   if(s.mvp){
     document.getElementById('mvp-name').textContent='@'+s.mvp.user;
