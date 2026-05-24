@@ -243,10 +243,16 @@ function connectTikTok(username, sessionId, signingKey, ttIdc) {
     });
 
   tiktokConnection.on('gift', data => {
-    const repeatEnd = data.repeatEnd ?? data.giftDetails?.repeatEnd ?? true;
-    const user  = data.uniqueId || data.nickname;
-    console.log(`[GIFT_RAW] user=${user} giftType=${data.giftType} diamondCount=${data.diamondCount} repeatCount=${data.repeatCount} repeatEnd=${repeatEnd} giftName=${data.giftName}`);
-    if (data.giftType === 1 && !repeatEnd) return;
+    const user = data.uniqueId || data.nickname;
+    // For combo gifts (giftType=1): only process the FINAL event (repeatEnd===true).
+    // Default to false (not done) so partial events with missing repeatEnd are skipped.
+    if (data.giftType === 1) {
+      const repeatEnd = data.repeatEnd ?? data.giftDetails?.repeatEnd ?? false;
+      console.log(`[GIFT_RAW] combo user=${user} giftType=1 diamondCount=${data.diamondCount} repeatCount=${data.repeatCount} repeatEnd=${repeatEnd} giftName=${data.giftName}`);
+      if (!repeatEnd) return;
+    } else {
+      console.log(`[GIFT_RAW] single user=${user} giftType=${data.giftType} diamondCount=${data.diamondCount} repeatCount=${data.repeatCount} giftName=${data.giftName}`);
+    }
     const coins = (data.diamondCount || 1) * (data.repeatCount || 1);
     onGift(user, coins);
   });
@@ -356,7 +362,9 @@ app.post('/api/start', (req, res) => {
     broadcast();
   }, 1000);
 
-  connectTikTok(state.tiktokUsername, state.sessionId, state.signingKey, state.ttIdc);
+  // Don't reconnect if already connected — double connection causes double gift events
+  if (!state.tiktokConnected)
+    connectTikTok(state.tiktokUsername, state.sessionId, state.signingKey, state.ttIdc);
   broadcast();
   res.json({ ok: true });
 });
