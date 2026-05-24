@@ -297,6 +297,8 @@ button:active{transform:scale(.97)}
     <h2>რეგიონების სია</h2>
     <div id="region-list"></div>
     <button class="btn-add" onclick="addRegion()">+ ახალი რეგიონი</button>
+    <button class="btn-start" onclick="applyRegions()" style="margin-top:8px;font-size:14px;padding:11px">🔄 განახლება (ლაივში)</button>
+    <div id="regions-msg" style="font-size:11px;color:var(--green);min-height:16px;margin-top:6px"></div>
   </div>
   <div class="card">
     <h2>გამომწვევი სიტყვები</h2>
@@ -473,6 +475,18 @@ function renderRegionList(){
 }
 function addRegion(){adminRegions.push('ახალი');renderRegionList();}
 function removeRegion(i){if(adminRegions.length>2)adminRegions.splice(i,1);renderRegionList();}
+async function applyRegions(){
+  const cleaned=adminRegions.map(r=>r.trim()).filter(Boolean);
+  if(cleaned.length<2){showRegMsg('⚠ მინიმუმ 2 რეგიონი');return;}
+  const r=await api('/api/update-regions',{regions:cleaned});
+  if(r?.ok){showRegMsg('✓ განახლდა');}else{showRegMsg('⚠ '+(r?.error||'შეცდომა'));}
+}
+function showRegMsg(m){
+  const el=document.getElementById('regions-msg');
+  if(!el)return;
+  el.textContent=m;el.style.color=m.startsWith('⚠')?'var(--orange)':'var(--green)';
+  setTimeout(()=>el.textContent='',2500);
+}
 
 // ── Socket ────────────────────────────────────────────────
 const socket=io();
