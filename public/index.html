@@ -257,15 +257,22 @@ function syncUI(s){
   const maxC=Math.max(...sorted.map(r=>r.c),1);
   document.getElementById('leaderboard').innerHTML=sorted.map((r,i)=>{
     const rm=s.regionMultipliers?.[r.n];
-    const badge=rm?`<span style="font-size:9px;font-weight:800;color:var(--gold);margin-left:4px;vertical-align:middle">⚡x${rm.value}(${rm.timeLeft})</span>`:'';
-    return`<div class="lb-row">
-      <span class="lb-rank">${i+1}.</span>
-      <span class="lb-name">${r.n}${badge}</span>
-      <div class="lb-wrap">
-        <div class="lb-bar" style="width:${Math.round(r.c/maxC*100)}%;background:${BC[i%BC.length]}${rm?';box-shadow:0 0 8px '+BC[i%BC.length]:''}}"></div>
-      </div>
-      <span class="lb-pts">${r.c.toLocaleString()}</span>
-    </div>`;}).join('');
+    const badge=rm?'<span style="font-size:9px;font-weight:800;color:var(--gold);margin-left:4px;vertical-align:middle">⚡x'+rm.value+'('+rm.timeLeft+')</span>':'';
+    const col=(s.regionColors&&s.regionColors[r.n])||BC[i%BC.length];
+    const wins=s.regionWins?.[r.n]||0;
+    const pct=Math.round(r.c/maxC*100);
+    const barStyle='width:'+pct+'%;background:'+col+(rm?';box-shadow:0 0 8px '+col:'');
+    const winsHtml=wins>0?'<span style="position:absolute;left:6px;top:0;bottom:0;display:flex;align-items:center;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-shadow:0 0 5px rgba(0,0,0,0.9);pointer-events:none;white-space:nowrap">'+wins+'-ჯ. ჩემ.</span>':'';
+    return'<div class="lb-row" style="border:1px solid '+col+'44;background:'+col+'11;border-radius:9px;padding:6px 8px;margin-bottom:6px">'
+      +'<span class="lb-rank" style="color:'+col+'">'+(i+1)+'.</span>'
+      +'<span class="lb-name" style="color:'+col+'">'+r.n+badge+'</span>'
+      +'<div class="lb-wrap" style="position:relative">'
+        +'<div class="lb-bar" style="'+barStyle+'"></div>'
+        +winsHtml
+      +'</div>'
+      +'<span class="lb-pts" style="color:'+col+'">'+r.c.toLocaleString()+'</span>'
+      +'</div>';
+  }).join('');
 
   const fl=document.getElementById('feed');
   if(!s.donations||s.donations.length===0){

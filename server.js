@@ -51,6 +51,25 @@ function saveMultSettings() {
 }
 const _savedMult = loadMultSettings();
 
+// ─── PERSIST COLORS & WINS ────────────────────────────────
+const COLORS_FILE = path.join(__dirname, 'colors.json');
+const WINS_FILE   = path.join(__dirname, 'wins.json');
+function loadJSON(file, def) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return def; }
+}
+function saveJSON(file, data) {
+  try { fs.writeFileSync(file, JSON.stringify(data)); } catch(e) { console.error('[SAVE]', e.message); }
+}
+const COLOR_PALETTE = [
+  '#4f8ef7','#34d399','#fb923c','#a78bfa','#f5c542','#60a5fa',
+  '#f87171','#2dd4bf','#e879f9','#84cc16','#f97316','#06b6d4',
+  '#8b5cf6','#ec4899','#10b981','#f59e0b','#3b82f6','#ef4444',
+  '#14b8a6','#6366f1',
+];
+const _loadedColors = loadJSON(COLORS_FILE, {});
+const _loadedWins   = loadJSON(WINS_FILE,   {});
+// ───────────────────────────────────────────────────────────
+
 // ─── GAME STATE ────────────────────────────────────────────
 const state = {
   status              : 'idle',   // idle | active | paused | done
@@ -60,6 +79,8 @@ const state = {
   userRegions         : {},       // { 'user123': 'იმერეთი', ... }
   donations           : [],       // last 20 for live feed
   aliases             : {},       // { 'იმერ': 'იმერეთი', ... }
+  regionColors        : { ..._loadedColors },
+  regionWins          : { ..._loadedWins },
   rshPrefix           : 'RSH:',  // customizable region-change command
   duration            : 120,
   timeLeft            : 0,
@@ -71,6 +92,7 @@ const state = {
   periodicMultipliers : _savedMult.periodic  || [],
   thresholdMultipliers: _savedMult.threshold || [],
 };
+ensureColors(state.regions);
 
 let timerInterval    = null;
 let tiktokConnection = null;
@@ -96,6 +118,29 @@ function updateMvp() {
 }
 
 function broadcast() { io.emit('gameUpdate', publicState()); }
+
+function ensureColors(regions) {
+  const used = new Set(Object.values(state.regionColors));
+  regions.forEach(r => {
+    if (!state.regionColors[r]) {
+      const avail = COLOR_PALETTE.filter(c => !used.has(c));
+      const pool = avail.length ? avail : COLOR_PALETTE;
+      const c = pool[Math.floor(Math.random() * pool.length)];
+      state.regionColors[r] = c;
+      used.add(c);
+    }
+  });
+  saveJSON(COLORS_FILE, state.regionColors);
+}
+
+function recordWin() {
+  const top = Object.entries(state.regionScores).sort((a, b) => b[1] - a[1]);
+  if (!top.length || top[0][1] <= 0) return;
+  const winner = top[0][0];
+  state.regionWins[winner] = (state.regionWins[winner] || 0) + 1;
+  saveJSON(WINS_FILE, state.regionWins);
+  console.log(`[WIN] ${winner}  total: ${state.regionWins[winner]}`);
+}
 
 function activateMultiplier(value, duration) {
   state.multiplier = { active: true, value, timeLeft: duration };
@@ -356,6 +401,7 @@ app.post('/api/start', (req, res) => {
     state.regions = regions.map(r => r.trim()).filter(Boolean);
   if (duration)       state.duration       = Math.max(10, parseInt(duration));
   if (tiktokUsername) state.tiktokUsername = tiktokUsername.replace('@','').trim();
+  ensureColors(state.regions);
 
   initScores();
   state.status   = 'active';
@@ -388,6 +434,7 @@ app.post('/api/start', (req, res) => {
 
     if (state.timeLeft <= 0) {
       clearInterval(timerInterval);
+      recordWin();
       state.status          = 'done';
       state.multiplier      = { active: false, value: 1, timeLeft: 0 };
       state.regionMultipliers = {};
@@ -412,6 +459,7 @@ app.post('/api/pause', (req, res) => {
 
 app.post('/api/stop', (req, res) => {
   if (timerInterval) clearInterval(timerInterval);
+  if (state.status === 'active' || state.status === 'paused') recordWin();
   state.status = 'done';
   disconnectTikTok();
   broadcast();
@@ -448,6 +496,29 @@ app.post('/api/update-regions', (req, res) => {
   const cleaned = regions.map(r => r.trim()).filter(Boolean);
   cleaned.forEach(r => { if (!state.regionScores[r]) state.regionScores[r] = 0; });
   state.regions = cleaned;
+  ensureColors(cleaned);
+  broadcast();
+  res.json({ ok: true });
+});
+
+// POST /api/set-colors { colors: { regionName: '#hex' } }
+app.post('/api/set-colors', (req, res) => {
+  const { colors } = req.body;
+  if (typeof colors !== 'object' || Array.isArray(colors))
+    return res.status(400).json({ error: 'colors must be an object' });
+  Object.assign(state.regionColors, colors);
+  saveJSON(COLORS_FILE, state.regionColors);
+  broadcast();
+  res.json({ ok: true });
+});
+
+// POST /api/set-wins { wins: { regionName: count } }
+app.post('/api/set-wins', (req, res) => {
+  const { wins } = req.body;
+  if (typeof wins !== 'object' || Array.isArray(wins))
+    return res.status(400).json({ error: 'wins must be an object' });
+  Object.assign(state.regionWins, wins);
+  saveJSON(WINS_FILE, state.regionWins);
   broadcast();
   res.json({ ok: true });
 });

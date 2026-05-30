@@ -334,6 +334,15 @@ button:active{transform:scale(.97)}
     <div id="regions-msg" style="font-size:11px;color:var(--green);min-height:16px;margin-top:6px"></div>
   </div>
   <div class="card">
+    <h2>მოგებების რედაქტირება</h2>
+    <div class="note" style="margin-bottom:10px;font-size:10px">
+      ხელით დაარედაქტირე <strong>რომელ რეგიონს</strong> რამდენი მოგება აქვს
+    </div>
+    <div id="wins-list"></div>
+    <button class="btn-start" onclick="saveWins()" style="margin-top:10px;font-size:14px;padding:11px">💾 შენახვა</button>
+    <div id="wins-msg" style="font-size:11px;min-height:16px;margin-top:5px"></div>
+  </div>
+  <div class="card">
     <h2>გამომწვევი სიტყვები</h2>
     <div class="note" style="margin-bottom:10px">
       კომენტარში <strong>ეს სიტყვა</strong> → ავტომატურად <strong>ის რეგიონი</strong><br/>
@@ -384,6 +393,28 @@ const DU=['გიო','ნათია','დავითი','სალომე
 let gs={};
 let demoInt=null,demoOn=false;
 let adminRegions=['იმერეთი','კახეთი','აჭარა','გურია','სვანეთი','სამეგრელო','ქართლი','ჰერეთი','რაჭა'];
+let adminColors={};
+let adminWins={};
+const _PAL=['#4f8ef7','#34d399','#fb923c','#a78bfa','#f5c542','#60a5fa','#f87171','#2dd4bf','#e879f9','#84cc16','#f97316','#06b6d4','#8b5cf6','#ec4899','#10b981','#f59e0b','#3b82f6','#ef4444','#14b8a6','#6366f1'];
+function _rndCol(){return _PAL[Math.floor(Math.random()*_PAL.length)];}
+async function sendColor(region,color){const o={};o[region]=color;await api('/api/set-colors',{colors:o});}
+async function saveWins(){
+  const o={};adminRegions.forEach(r=>{o[r]=+(adminWins[r]||0);});
+  const r=await api('/api/set-wins',{wins:o});
+  const el=document.getElementById('wins-msg');
+  if(el){el.textContent=r?.ok?'✓ შენახულია':'⚠ შეცდომა';el.style.color=r?.ok?'var(--green)':'var(--orange)';setTimeout(()=>el.textContent='',2500);}
+}
+function renderWinsList(){
+  const el=document.getElementById('wins-list');if(!el)return;
+  el.innerHTML=adminRegions.map((r,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:13px;font-weight:600;color:${adminColors[r]||'var(--text)'}">${r}</span>
+      <input type="number" value="${adminWins[r]||0}" min="0"
+             style="width:70px;flex:none;font-size:14px"
+             oninput="adminWins[adminRegions[${i}]]=+this.value"/>
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap">მოგ.</span>
+    </div>`).join('');
+}
 
 // ── Tabs ──────────────────────────────────────────────────
 function switchTab(name){
@@ -501,12 +532,16 @@ function renderRegionList(){
   document.getElementById('region-list').innerHTML=
     adminRegions.map((r,i)=>`
       <div class="ri">
+        <input type="color" value="${adminColors[r]||'#4f8ef7'}"
+               title="ფერი"
+               style="width:36px;height:36px;padding:2px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg3);cursor:pointer;flex-shrink:0"
+               oninput="adminColors[adminRegions[${i}]]=this.value;sendColor(adminRegions[${i}],this.value);renderWinsList()"/>
         <input type="text" value="${r.replace(/"/g,'&quot;')}"
                oninput="adminRegions[${i}]=this.value"/>
         <button class="btn-del" onclick="removeRegion(${i})">×</button>
       </div>`).join('');
 }
-function addRegion(){adminRegions.push('ახალი');renderRegionList();}
+function addRegion(){const n='ახალი';if(!adminColors[n])adminColors[n]=_rndCol();adminRegions.push(n);renderRegionList();}
 function removeRegion(i){if(adminRegions.length>2)adminRegions.splice(i,1);renderRegionList();}
 async function applyRegions(){
   const cleaned=adminRegions.map(r=>r.trim()).filter(Boolean);
@@ -523,7 +558,7 @@ function showRegMsg(m){
 
 // ── Socket ────────────────────────────────────────────────
 const socket=io();
-socket.on('gameUpdate',s=>{gs=s;syncAdmin(s);});
+socket.on('gameUpdate',s=>{gs=s;if(s.regionColors)Object.assign(adminColors,s.regionColors);if(s.regionWins)Object.assign(adminWins,s.regionWins);syncAdmin(s);});
 socket.on('tiktokStatus',info=>{
   const dot  =document.getElementById('tt-dot');
   const txt  =document.getElementById('tt-status-txt');
@@ -838,6 +873,8 @@ lsLoad();
 
 fetch('/api/state').then(r=>r.json()).then(s=>{
   gs=s;
+  if(s.regionColors)Object.assign(adminColors,s.regionColors);
+  if(s.regionWins)Object.assign(adminWins,s.regionWins);
   if(s.regions&&s.regions.length)adminRegions=s.regions;
   if(s.tiktokUsername)document.getElementById('tt-user').value=s.tiktokUsername;
   document.getElementById('duration').value=s.duration||120;
@@ -847,6 +884,7 @@ fetch('/api/state').then(r=>r.json()).then(s=>{
   }
   renderRegionList();
   renderAliasList();
+  renderWinsList();
   populateTransferRegions();
   if(s.periodicMultipliers){periodicMults=s.periodicMultipliers;renderPeriodicList();}
   if(s.thresholdMultipliers){thresholdMults=s.thresholdMultipliers;renderThresholdList();}
