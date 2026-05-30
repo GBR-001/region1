@@ -176,6 +176,7 @@ body{
 
 <div id="mvp">
   <div class="mvp-lbl">🏆 MVP</div>
+  <div id="mvp-avatar" style="margin:4px auto 6px;width:56px;height:56px"></div>
   <div class="mvp-name" id="mvp-name">—</div>
   <div class="mvp-sub"  id="mvp-coins">ჯერ არარის</div>
 </div>
@@ -246,9 +247,16 @@ function syncUI(s){
   } else mb.classList.remove('show');
 
   if(s.mvp){
+    const av=document.getElementById('mvp-avatar');
+    if(s.mvp.avatar){
+      av.innerHTML='<img src="'+s.mvp.avatar+'" style="width:56px;height:56px;border-radius:50%;border:2px solid var(--purple);object-fit:cover;display:block" onerror="this.style.display=\'none\'">';
+    } else {
+      av.innerHTML='<div style="width:56px;height:56px;border-radius:50%;border:2px solid var(--purple);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px">👤</div>';
+    }
     document.getElementById('mvp-name').textContent='@'+s.mvp.user;
     document.getElementById('mvp-coins').textContent=s.mvp.coins.toLocaleString()+' ქოინი';
   } else {
+    document.getElementById('mvp-avatar').innerHTML='';
     document.getElementById('mvp-name').textContent='—';
     document.getElementById('mvp-coins').textContent='ჯერ არარის';
   }

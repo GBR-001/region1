@@ -78,6 +78,7 @@ const state = {
   userScores          : {},       // { 'user123': 100, ... }
   userRegions         : {},       // { 'user123': 'იმერეთი', ... }
   donations           : [],       // last 20 for live feed
+  userAvatars         : {},       // { 'user123': 'https://...' }
   aliases             : {},       // { 'იმერ': 'იმერეთი', ... }
   regionColors        : { ..._loadedColors },
   regionWins          : { ..._loadedWins },
@@ -102,6 +103,7 @@ function initScores() {
   state.regionScores = {};
   state.userScores   = {};
   state.userRegions  = {};
+  state.userAvatars  = {};
   state.donations    = [];
   state.mvp          = null;
   state.multiplier        = { active: false, value: 1, timeLeft: 0 };
@@ -110,11 +112,16 @@ function initScores() {
   Object.keys(pendingGifts).forEach(k => delete pendingGifts[k]);
 }
 
-function publicState() { return { ...state }; }
+function publicState() {
+  const { userAvatars, ...rest } = state;
+  return rest;
+}
 
 function updateMvp() {
   const top = Object.entries(state.userScores).sort((a, b) => b[1] - a[1])[0];
-  state.mvp = top ? { user: top[0], coins: top[1] } : null;
+  state.mvp = top
+    ? { user: top[0], coins: top[1], avatar: state.userAvatars[top[0]] || null }
+    : null;
 }
 
 function broadcast() { io.emit('gameUpdate', publicState()); }
@@ -314,6 +321,8 @@ function connectTikTok(username, sessionId, signingKey, ttIdc) {
 
   tiktokConnection.on('gift', data => {
     const user = data.uniqueId || data.nickname;
+    const av = data.profilePictureUrl || data.userDetails?.profilePictureUrl || null;
+    if (av) state.userAvatars[user] = av;
     // For combo gifts (giftType=1): only process the FINAL event (repeatEnd===true).
     // Default to false (not done) so partial events with missing repeatEnd are skipped.
     if (data.giftType === 1) {
@@ -329,7 +338,10 @@ function connectTikTok(username, sessionId, signingKey, ttIdc) {
   });
 
   tiktokConnection.on('chat', data => {
-    onComment(data.uniqueId || data.nickname, data.comment || '');
+    const user = data.uniqueId || data.nickname;
+    const av = data.profilePictureUrl || null;
+    if (av) state.userAvatars[user] = av;
+    onComment(user, data.comment || '');
   });
 
   tiktokConnection.on('disconnected', () => {
