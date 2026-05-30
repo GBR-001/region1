@@ -117,7 +117,12 @@ function initScores() {
 
 function publicState() {
   const { userAvatars, ...rest } = state;
-  return rest;
+  // Only send avatars for users who actually scored (keeps payload small)
+  const avatars = {};
+  Object.keys(state.userScores).forEach(u => {
+    if (state.userAvatars[u]) avatars[u] = state.userAvatars[u];
+  });
+  return { ...rest, userAvatars: avatars };
 }
 
 function updateMvp() {

@@ -340,12 +340,18 @@ function showPhase(s,phase){
     const su=sortU(s);
     document.getElementById('res-list').innerHTML=su.length===0
       ?'<p style="color:var(--muted);font-size:13px">მონაწილეები არ ყოფილა</p>'
-      :su.map((u,i)=>`
-        <div class="res-row">
-          <span class="res-i">${i+1}.</span>
-          <span class="res-n">@${u.u}${i===0?' <span class="mvp-tag">MVP</span>':''}</span>
-          <span class="res-s" style="color:${BC[i%BC.length]}">${u.c.toLocaleString()} ქ.</span>
-        </div>`).join('');
+      :su.map((u,i)=>{
+        const av=s.userAvatars?.[u.u];
+        const avHtml=av
+          ?'<img src="'+av+'" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">'
+          :'<div style="width:32px;height:32px;border-radius:50%;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px">👤</div>';
+        return '<div class="res-row">'
+          +'<span class="res-i">'+(i+1)+'.</span>'
+          +avHtml
+          +'<span class="res-n">@'+u.u+(i===0?' <span class="mvp-tag">MVP</span>':'')+'</span>'
+          +'<span class="res-s" style="color:'+BC[i%BC.length]+'">'+u.c.toLocaleString()+' ქ.</span>'
+          +'</div>';
+      }).join('');
   }
 }
 
