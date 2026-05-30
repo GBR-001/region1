@@ -51,9 +51,10 @@ function saveMultSettings() {
 }
 const _savedMult = loadMultSettings();
 
-// ─── PERSIST COLORS & WINS ────────────────────────────────
+// ─── PERSIST COLORS, WINS & CONFIG ───────────────────────
 const COLORS_FILE = path.join(__dirname, 'colors.json');
 const WINS_FILE   = path.join(__dirname, 'wins.json');
+const CONFIG_FILE = path.join(__dirname, 'config.json');
 function loadJSON(file, def) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return def; }
 }
@@ -68,6 +69,7 @@ const COLOR_PALETTE = [
 ];
 const _loadedColors = loadJSON(COLORS_FILE, {});
 const _loadedWins   = loadJSON(WINS_FILE,   {});
+const _loadedCfg    = loadJSON(CONFIG_FILE, {});
 // ───────────────────────────────────────────────────────────
 
 // ─── GAME STATE ────────────────────────────────────────────
@@ -82,6 +84,7 @@ const state = {
   aliases             : {},       // { 'იმერ': 'იმერეთი', ... }
   regionColors        : { ..._loadedColors },
   regionWins          : { ..._loadedWins },
+  winsLabel           : _loadedCfg.winsLabel !== undefined ? _loadedCfg.winsLabel : '{n}-ჯ. ჩემ.',
   rshPrefix           : 'RSH:',  // customizable region-change command
   duration            : 120,
   timeLeft            : 0,
@@ -531,6 +534,16 @@ app.post('/api/set-wins', (req, res) => {
     return res.status(400).json({ error: 'wins must be an object' });
   Object.assign(state.regionWins, wins);
   saveJSON(WINS_FILE, state.regionWins);
+  broadcast();
+  res.json({ ok: true });
+});
+
+// POST /api/set-wins-label { label }
+app.post('/api/set-wins-label', (req, res) => {
+  if (typeof req.body.label !== 'string')
+    return res.status(400).json({ error: 'label must be a string' });
+  state.winsLabel = req.body.label;
+  saveJSON(CONFIG_FILE, { winsLabel: state.winsLabel });
   broadcast();
   res.json({ ok: true });
 });

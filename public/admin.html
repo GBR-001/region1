@@ -335,6 +335,18 @@ button:active{transform:scale(.97)}
   </div>
   <div class="card">
     <h2>მოგებების რედაქტირება</h2>
+    <div class="form-row">
+      <label>ბარის ტექსტი &nbsp;<span style="color:var(--muted);font-size:10px"><code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">{n}</code> = ციფრი</span></label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="wins-label-input" placeholder="{n}-ჯ. ჩემ." style="flex:1;min-width:0"/>
+        <button class="btn-connect" onclick="saveWinsLabel()" style="white-space:nowrap">💾</button>
+      </div>
+      <div id="wins-label-preview" style="font-size:11px;color:var(--muted);margin-top:4px">
+        მაგ: <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">{n}-ჯ. ჩემ.</code> &nbsp; <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">{n} 🏆</code> &nbsp; <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">🥇 {n}×</code>
+      </div>
+      <div id="wins-label-msg" style="font-size:11px;min-height:14px;margin-top:4px"></div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:10px 0"></div>
     <div class="note" style="margin-bottom:10px;font-size:10px">
       ხელით დაარედაქტირე <strong>რომელ რეგიონს</strong> რამდენი მოგება აქვს
     </div>
@@ -398,6 +410,12 @@ let adminWins={};
 const _PAL=['#4f8ef7','#34d399','#fb923c','#a78bfa','#f5c542','#60a5fa','#f87171','#2dd4bf','#e879f9','#84cc16','#f97316','#06b6d4','#8b5cf6','#ec4899','#10b981','#f59e0b','#3b82f6','#ef4444','#14b8a6','#6366f1'];
 function _rndCol(){return _PAL[Math.floor(Math.random()*_PAL.length)];}
 async function sendColor(region,color){const o={};o[region]=color;await api('/api/set-colors',{colors:o});}
+async function saveWinsLabel(){
+  const label=(document.getElementById('wins-label-input')?.value??'');
+  const r=await api('/api/set-wins-label',{label});
+  const el=document.getElementById('wins-label-msg');
+  if(el){el.textContent=r?.ok?'✓ შენახულია':'⚠ შეცდომა';el.style.color=r?.ok?'var(--green)':'var(--orange)';setTimeout(()=>el.textContent='',2500);}
+}
 async function saveWins(){
   const o={};adminRegions.forEach(r=>{o[r]=+(adminWins[r]||0);});
   const r=await api('/api/set-wins',{wins:o});
@@ -875,6 +893,7 @@ fetch('/api/state').then(r=>r.json()).then(s=>{
   gs=s;
   if(s.regionColors)Object.assign(adminColors,s.regionColors);
   if(s.regionWins)Object.assign(adminWins,s.regionWins);
+  if(s.winsLabel!==undefined){const el=document.getElementById('wins-label-input');if(el&&!el.value)el.value=s.winsLabel;}
   if(s.regions&&s.regions.length)adminRegions=s.regions;
   if(s.tiktokUsername)document.getElementById('tt-user').value=s.tiktokUsername;
   document.getElementById('duration').value=s.duration||120;
