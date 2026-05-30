@@ -336,13 +336,13 @@ button:active{transform:scale(.97)}
   <div class="card">
     <h2>მოგებების რედაქტირება</h2>
     <div class="form-row">
-      <label>ბარის ტექსტი &nbsp;<span style="color:var(--muted);font-size:10px"><code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">{n}</code> = ციფრი</span></label>
+      <label>ბარის ტექსტი &nbsp;<span style="color:var(--muted);font-size:10px">(ციფრი ავტომატურად ემატება წინ)</span></label>
       <div style="display:flex;gap:8px">
-        <input type="text" id="wins-label-input" placeholder="{n}-ჯ. ჩემ." style="flex:1;min-width:0"/>
+        <input type="text" id="wins-label-input" placeholder="-ჯ. ჩემ." style="flex:1;min-width:0"/>
         <button class="btn-connect" onclick="saveWinsLabel()" style="white-space:nowrap">💾</button>
       </div>
-      <div id="wins-label-preview" style="font-size:11px;color:var(--muted);margin-top:4px">
-        მაგ: <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">{n}-ჯ. ჩემ.</code> &nbsp; <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">{n} 🏆</code> &nbsp; <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">🥇 {n}×</code>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">
+        მაგ: <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">-ჯ. ჩემ.</code> &nbsp; <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)"> 🏆</code> &nbsp; <code style="background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--green)">× ჩემ.</code>
       </div>
       <div id="wins-label-msg" style="font-size:11px;min-height:14px;margin-top:4px"></div>
     </div>

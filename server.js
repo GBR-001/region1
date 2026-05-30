@@ -84,7 +84,7 @@ const state = {
   aliases             : {},       // { 'იმერ': 'იმერეთი', ... }
   regionColors        : { ..._loadedColors },
   regionWins          : { ..._loadedWins },
-  winsLabel           : _loadedCfg.winsLabel !== undefined ? _loadedCfg.winsLabel : '{n}-ჯ. ჩემ.',
+  winsLabel           : _loadedCfg.winsLabel !== undefined ? _loadedCfg.winsLabel : '-ჯ. ჩემ.',
   rshPrefix           : 'RSH:',  // customizable region-change command
   duration            : 120,
   timeLeft            : 0,

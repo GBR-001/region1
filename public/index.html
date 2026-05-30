@@ -270,8 +270,8 @@ function syncUI(s){
     const wins=s.regionWins?.[r.n]||0;
     const pct=Math.round(r.c/maxC*100);
     const barStyle='width:'+pct+'%;background:'+col+(rm?';box-shadow:0 0 8px '+col:'');
-    const winsLbl=(s.winsLabel!==undefined?s.winsLabel:'{n}-ჯ. ჩემ.').replace('{n}',wins);
-    const winsHtml=wins>0?'<span style="position:absolute;left:6px;top:0;bottom:0;display:flex;align-items:center;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-shadow:0 0 5px rgba(0,0,0,0.9);pointer-events:none;white-space:nowrap">'+winsLbl+'</span>':'';
+    const winsLbl=wins+(s.winsLabel!==undefined?s.winsLabel:'-ჯ. ჩემ.');
+    const winsHtml=wins>0?'<span style="position:absolute;left:6px;top:0;bottom:0;display:flex;align-items:center;font-size:13px;font-weight:800;color:rgba(255,255,255,0.92);text-shadow:0 0 5px rgba(0,0,0,0.9);pointer-events:none;white-space:nowrap">'+winsLbl+'</span>':'';
     return'<div class="lb-row" style="border:1px solid '+col+'44;background:'+col+'11;border-radius:9px;padding:6px 8px;margin-bottom:6px">'
       +'<span class="lb-rank" style="color:'+col+'">'+(i+1)+'.</span>'
       +'<span class="lb-name" style="color:'+col+'">'+r.n+badge+'</span>'
