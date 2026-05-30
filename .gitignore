@@ -1,3 +1,8 @@
 node_modules/
 .env
 *.log
+data/
+colors.json
+wins.json
+config.json
+multipliers.json

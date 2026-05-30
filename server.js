@@ -38,8 +38,13 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ─── DATA DIRECTORY (persistent volume on Railway) ────────
+const DATA_DIR = path.join(__dirname, 'data');
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
+// ──────────────────────────────────────────────────────────
+
 // ─── PERSIST MULTIPLIER SETTINGS ──────────────────────────
-const MULT_FILE = path.join(__dirname, 'multipliers.json');
+const MULT_FILE = path.join(DATA_DIR, 'multipliers.json');
 function loadMultSettings() {
   try { return JSON.parse(fs.readFileSync(MULT_FILE, 'utf8')); } catch { return {}; }
 }
@@ -52,9 +57,9 @@ function saveMultSettings() {
 const _savedMult = loadMultSettings();
 
 // ─── PERSIST COLORS, WINS & CONFIG ───────────────────────
-const COLORS_FILE = path.join(__dirname, 'colors.json');
-const WINS_FILE   = path.join(__dirname, 'wins.json');
-const CONFIG_FILE = path.join(__dirname, 'config.json');
+const COLORS_FILE = path.join(DATA_DIR, 'colors.json');
+const WINS_FILE   = path.join(DATA_DIR, 'wins.json');
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 function loadJSON(file, def) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return def; }
 }
