@@ -105,6 +105,8 @@ ensureColors(state.regions);
 
 let timerInterval    = null;
 let tiktokConnection = null;
+let tiktokConnecting = false;
+let tiktokConnSeq    = 0;
 
 // ─── HELPERS ───────────────────────────────────────────────
 function initScores() {
@@ -300,7 +302,12 @@ function errMsg(err) {
 // ─── TIKTOK CONNECTION ─────────────────────────────────────
 function connectTikTok(username, sessionId, signingKey, ttIdc) {
   if (!username) return;
-  if (tiktokConnection) { tiktokConnection.disconnect(); tiktokConnection = null; }
+  const seq = ++tiktokConnSeq;
+  if (tiktokConnection) {
+    try { tiktokConnection.disconnect(); } catch (_) {}
+    tiktokConnection = null;
+  }
+  tiktokConnecting = true;
 
   io.emit('tiktokStatus', { connecting: true, username });
 
@@ -316,23 +323,30 @@ function connectTikTok(username, sessionId, signingKey, ttIdc) {
 
   console.log(`[TIKTOK] Connecting @${username}  signing=${!!signingKey}  session=${!!(sessionId&&ttIdc)}  idc=${ttIdc||'—'}`);
 
-  tiktokConnection = new WebcastPushConnection(username, opts);
+  const conn = new WebcastPushConnection(username, opts);
+  tiktokConnection = conn;
+  const isActive = () => seq === tiktokConnSeq && tiktokConnection === conn;
 
-  tiktokConnection.connect()
+  conn.connect()
     .then(info => {
+      if (!isActive()) return;
       console.log(`[TIKTOK] Connected @${username}  roomId=${info && info.roomId}`);
+      tiktokConnecting = false;
       state.tiktokConnected = true;
       io.emit('tiktokStatus', { connected: true, username });
       broadcast();
     })
     .catch(err => {
+      if (!isActive()) return;
       const msg = errMsg(err);
       console.error('[TIKTOK] Connection failed:', msg);
+      tiktokConnecting = false;
       state.tiktokConnected = false;
       io.emit('tiktokStatus', { connected: false, error: msg });
     });
 
-  tiktokConnection.on('gift', data => {
+  conn.on('gift', data => {
+    if (!isActive()) return;
     const user = data.uniqueId || data.nickname;
     const av = data.profilePictureUrl || data.userDetails?.profilePictureUrl || null;
     if (av) state.userAvatars[user] = av;
@@ -350,19 +364,23 @@ function connectTikTok(username, sessionId, signingKey, ttIdc) {
     onGift(user, coins, perUnit);
   });
 
-  tiktokConnection.on('chat', data => {
+  conn.on('chat', data => {
+    if (!isActive()) return;
     const user = data.uniqueId || data.nickname;
     const av = data.profilePictureUrl || null;
     if (av) state.userAvatars[user] = av;
     onComment(user, data.comment || '');
   });
 
-  tiktokConnection.on('disconnected', () => {
+  conn.on('disconnected', () => {
+    if (!isActive()) return;
+    tiktokConnecting = false;
     state.tiktokConnected = false;
     io.emit('tiktokStatus', { connected: false });
   });
 
-  tiktokConnection.on('error', err => {
+  conn.on('error', err => {
+    if (!isActive()) return;
     const msg = errMsg(err);
     console.error('[TIKTOK] Error:', msg);
 
@@ -383,7 +401,12 @@ function connectTikTok(username, sessionId, signingKey, ttIdc) {
 }
 
 function disconnectTikTok() {
-  if (tiktokConnection) { tiktokConnection.disconnect(); tiktokConnection = null; }
+  tiktokConnSeq++;
+  tiktokConnecting = false;
+  if (tiktokConnection) {
+    try { tiktokConnection.disconnect(); } catch (_) {}
+    tiktokConnection = null;
+  }
   state.tiktokConnected = false;
 }
 
@@ -468,8 +491,8 @@ app.post('/api/start', (req, res) => {
     broadcast();
   }, 1000);
 
-  // Don't reconnect if already connected — double connection causes double gift events
-  if (!state.tiktokConnected)
+  // Don't reconnect if already connected/connecting — double connection causes double gift events
+  if (!state.tiktokConnected && !tiktokConnecting)
     connectTikTok(state.tiktokUsername, state.sessionId, state.signingKey, state.ttIdc);
   broadcast();
   res.json({ ok: true });
