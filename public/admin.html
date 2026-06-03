@@ -325,6 +325,7 @@ button:active{transform:scale(.97)}
       </div>
     </div>
     <div id="preset-list"></div>
+    <div id="preset-msg" style="font-size:11px;color:var(--green);min-height:16px;margin-top:6px"></div>
   </div>
   <div class="card">
     <h2>რეგიონების სია</h2>
@@ -458,7 +459,7 @@ function savePreset(){
   if(idx>=0)presets[idx]=entry; else presets.push(entry);
   setPresets(presets);
   renderPresets();
-  showMsg('✓ შენახულია: '+name);
+  showPresetMsg('✓ შენახულია: '+name);
 }
 function loadPreset(name){
   const p=getPresets().find(p=>p.name===name);
@@ -466,7 +467,7 @@ function loadPreset(name){
   adminRegions=[...p.regions];
   adminAliases=p.aliases?p.aliases.map(a=>({...a})):[];
   renderRegionList();renderAliasList();populateTransferRegions();
-  showMsg('✓ ჩატვირთულია: '+name);
+  showPresetMsg('✓ ჩატვირთულია: '+name);
   switchTab('regions');
 }
 function deletePreset(name){
@@ -489,8 +490,8 @@ function renderPresets(){
         <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.regions.join(', ')}</div>
       </div>
       <button class="btn-connect" style="font-size:12px;padding:7px 10px"
-        onclick="loadPreset(${JSON.stringify(p.name)})">↙ ჩატვირთვა</button>
-      <button class="btn-del" onclick="deletePreset(${JSON.stringify(p.name)})">×</button>
+        onclick='loadPreset(${JSON.stringify(p.name)})'>↙ ჩატვირთვა</button>
+      <button class="btn-del" onclick='deletePreset(${JSON.stringify(p.name)})'>×</button>
     </div>`).join('');
 }
 
@@ -810,6 +811,12 @@ function toggleDemo(){
   }
 }
 
+function showPresetMsg(m){
+  const el=document.getElementById('preset-msg');
+  if(!el)return;
+  el.textContent=m;el.style.color=m.startsWith('⚠')?'var(--orange)':'var(--green)';
+  setTimeout(()=>el.textContent='',2500);
+}
 function showMsg(m){
   const el=document.getElementById('sim-msg');
   el.textContent=m;el.style.color=m.startsWith('⚠')?'var(--orange)':'var(--green)';
