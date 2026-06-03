@@ -268,6 +268,25 @@ button:active{transform:scale(.97)}
   </div>
 
   <div class="card">
+    <h2>💰 ქოინის კურსი</h2>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <label>1 ქოინი =</label>
+        <input type="number" id="coin-rate" value="1" min="0.0001" step="any" style="font-size:15px"/>
+      </div>
+      <div style="width:72px">
+        <label>ვალუტა</label>
+        <input type="text" id="coin-unit" value="₾" maxlength="5" style="font-size:15px;text-align:center"/>
+      </div>
+      <button class="btn-connect" onclick="saveCoinRate()" style="white-space:nowrap;padding:10px 14px">💾</button>
+    </div>
+    <div id="coin-rate-msg" style="font-size:11px;color:var(--green);min-height:16px;margin-top:5px"></div>
+    <div class="note" style="margin-top:6px">
+      მაგ: 1 ქოინი = 0.05 ₾ → 1 000 ქ. გამოჩნდება <strong>50 ₾</strong>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>კონტროლი</h2>
     <button class="btn-start" onclick="startGame()">▶ თამაშის დაწყება</button>
     <div class="btn-row" style="margin-top:10px">
@@ -645,7 +664,7 @@ function syncAdmin(s){
   document.getElementById('time-left').textContent=
     (s.status==='active'||s.status==='paused')?fmt(s.timeLeft):'—';
   document.getElementById('mvp-val').textContent=
-    s.mvp?('@'+s.mvp.user+' — '+s.mvp.coins.toLocaleString()+' ქ.'):'—';
+    s.mvp?('@'+s.mvp.user+' — '+fmtVal(s.mvp.coins,s)):'—';
   document.getElementById('player-count').textContent=
     Object.keys(s.userRegions||{}).length+'';
 
@@ -679,7 +698,7 @@ function syncAdmin(s){
       <div class="mlb-wrap">
         <div class="mlb-bar" style="width:${Math.round(r.c/maxC*100)}%;background:${BC[i%BC.length]}"></div>
       </div>
-      <span class="mlb-pts">${r.c.toLocaleString()}</span>
+      <span class="mlb-pts">${fmtVal(r.c,s)}</span>
     </div>`).join('');
 
   const fl=document.getElementById('feed');
@@ -689,7 +708,7 @@ function syncAdmin(s){
     fl.innerHTML=s.donations.slice(0,10).map(d=>`
       <div class="fi">
         <span class="fi-u">@${d.username}</span>
-        <span class="fi-c">+${d.coins.toLocaleString()}</span>
+        <span class="fi-c">+${fmtVal(d.coins,s)}</span>
         <span style="color:var(--muted)">→</span>
         <span class="fi-r">${d.region}</span>
       </div>`).join('');
@@ -811,6 +830,22 @@ function toggleDemo(){
   }
 }
 
+function fmtVal(coins,s){
+  const rate=s?.coinRate||gs?.coinRate||1;
+  const unit=s?.coinUnit!==undefined?s.coinUnit:(gs?.coinUnit!==undefined?gs.coinUnit:'₾');
+  if(rate===1)return coins.toLocaleString()+' ქ.';
+  const v=coins*rate;
+  const str=Number.isInteger(v)?v.toLocaleString():v.toLocaleString(undefined,{maximumFractionDigits:2});
+  return str+(unit?' '+unit:'');
+}
+async function saveCoinRate(){
+  const rate=parseFloat(document.getElementById('coin-rate')?.value);
+  const unit=document.getElementById('coin-unit')?.value??'₾';
+  const el=document.getElementById('coin-rate-msg');
+  if(!rate||rate<=0){if(el){el.textContent='⚠ შეიყვანე დადებითი რიცხვი';el.style.color='var(--orange)';}return;}
+  const r=await api('/api/set-coin-rate',{rate,unit});
+  if(el){el.textContent=r?.ok?'✓ შენახულია':'⚠ შეცდომა';el.style.color=r?.ok?'var(--green)':'var(--orange)';setTimeout(()=>el.textContent='',2500);}
+}
 function showPresetMsg(m){
   const el=document.getElementById('preset-msg');
   if(!el)return;
@@ -849,7 +884,7 @@ function renderPlayers(s){
       <span style="font-size:12px;color:var(--muted);min-width:18px">${i+1}.</span>
       <span style="font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@${u}</span>
       <span style="font-size:12px;color:var(--accent);min-width:40px;text-align:right">${(s.userRegions||{})[u]||'—'}</span>
-      <span style="font-size:13px;font-weight:800;color:var(--gold);min-width:50px;text-align:right">${c.toLocaleString()} ქ.</span>
+      <span style="font-size:13px;font-weight:800;color:var(--gold);min-width:50px;text-align:right">${fmtVal(c,gs)}</span>
     </div>`).join('');
 }
 
@@ -901,6 +936,8 @@ fetch('/api/state').then(r=>r.json()).then(s=>{
   if(s.regionColors)Object.assign(adminColors,s.regionColors);
   if(s.regionWins)Object.assign(adminWins,s.regionWins);
   if(s.winsLabel!==undefined){const el=document.getElementById('wins-label-input');if(el&&!el.value)el.value=s.winsLabel;}
+  if(s.coinRate!==undefined){const el=document.getElementById('coin-rate');if(el)el.value=s.coinRate;}
+  if(s.coinUnit!==undefined){const el=document.getElementById('coin-unit');if(el)el.value=s.coinUnit;}
   if(s.regions&&s.regions.length)adminRegions=s.regions;
   if(s.tiktokUsername)document.getElementById('tt-user').value=s.tiktokUsername;
   document.getElementById('duration').value=s.duration||120;

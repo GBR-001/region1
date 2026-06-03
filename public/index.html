@@ -221,6 +221,15 @@ const BC=['#4f8ef7','#34d399','#fb923c','#a78bfa','#f5c542','#60a5fa','#f87171',
 let gs={};
 let resInt=null,resLeft=30,resPhase='regions';
 
+function fmtVal(coins,s){
+  const rate=s?.coinRate||1;
+  const unit=s?.coinUnit!==undefined?s.coinUnit:'₾';
+  if(rate===1)return coins.toLocaleString()+' ქ.';
+  const v=coins*rate;
+  const str=Number.isInteger(v)?v.toLocaleString():v.toLocaleString(undefined,{maximumFractionDigits:2});
+  return str+(unit?' '+unit:'');
+}
+
 const socket=io();
 socket.on('gameUpdate',s=>{gs=s;syncUI(s);});
 
@@ -254,7 +263,7 @@ function syncUI(s){
       av.innerHTML='<div style="width:56px;height:56px;border-radius:50%;border:2px solid var(--purple);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px">👤</div>';
     }
     document.getElementById('mvp-name').textContent='@'+s.mvp.user;
-    document.getElementById('mvp-coins').textContent=s.mvp.coins.toLocaleString()+' ქოინი';
+    document.getElementById('mvp-coins').textContent=fmtVal(s.mvp.coins,s);
   } else {
     document.getElementById('mvp-avatar').innerHTML='';
     document.getElementById('mvp-name').textContent='—';
@@ -279,7 +288,7 @@ function syncUI(s){
         +'<div class="lb-bar" style="'+barStyle+'"></div>'
         +winsHtml
       +'</div>'
-      +'<span class="lb-pts" style="color:'+col+'">'+r.c.toLocaleString()+'</span>'
+      +'<span class="lb-pts" style="color:'+col+'">'+fmtVal(r.c,s)+'</span>'
       +'</div>';
   }).join('');
 
@@ -290,7 +299,7 @@ function syncUI(s){
     fl.innerHTML=s.donations.slice(0,8).map(d=>`
       <div class="fi">
         <span class="fi-u">@${d.username}</span>
-        <span class="fi-c">+${d.coins}</span>
+        <span class="fi-c">+${fmtVal(d.coins,s)}</span>
         <span style="color:var(--muted);font-size:10px">→</span>
         <span class="fi-r">${d.region}</span>
       </div>`).join('');
@@ -331,7 +340,7 @@ function showPhase(s,phase){
       <div class="res-row">
         <span class="res-i">${i+1}.</span>
         <span class="res-n">${r.n}</span>
-        <span class="res-s" style="color:${BC[i%BC.length]}">${r.c.toLocaleString()} ქ.</span>
+        <span class="res-s" style="color:${BC[i%BC.length]}">${fmtVal(r.c,s)}</span>
       </div>`).join('');
   } else {
     document.getElementById('res-title').textContent='👤 ტოპი';
@@ -349,7 +358,7 @@ function showPhase(s,phase){
           +'<span class="res-i">'+(i+1)+'.</span>'
           +avHtml
           +'<span class="res-n">@'+u.u+(i===0?' <span class="mvp-tag">MVP</span>':'')+'</span>'
-          +'<span class="res-s" style="color:'+BC[i%BC.length]+'">'+u.c.toLocaleString()+' ქ.</span>'
+          +'<span class="res-s" style="color:'+BC[i%BC.length]+'">'+fmtVal(u.c,s)+'</span>'
           +'</div>';
       }).join('');
   }
@@ -366,7 +375,7 @@ function renderPodium(s){
     <div class="pod-col">
       <div class="pod-rank" style="background:${cs[i]}">${rk[i]}</div>
       <div class="pod-name">${r.n}</div>
-      <div class="pod-pts">${r.c.toLocaleString()}</div>
+      <div class="pod-pts">${fmtVal(r.c,gs)}</div>
       <div class="pod-bar" style="height:${hs[i]}px;background:${cs[i]};opacity:.85"></div>
     </div>`:'<div class="pod-col"></div>').join('');
 }

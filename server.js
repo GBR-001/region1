@@ -75,6 +75,13 @@ const COLOR_PALETTE = [
 const _loadedColors = loadJSON(COLORS_FILE, {});
 const _loadedWins   = loadJSON(WINS_FILE,   {});
 const _loadedCfg    = loadJSON(CONFIG_FILE, {});
+function saveConfig() {
+  saveJSON(CONFIG_FILE, {
+    winsLabel: state.winsLabel,
+    coinRate : state.coinRate,
+    coinUnit : state.coinUnit,
+  });
+}
 // ───────────────────────────────────────────────────────────
 
 // ─── GAME STATE ────────────────────────────────────────────
@@ -90,6 +97,8 @@ const state = {
   regionColors        : { ..._loadedColors },
   regionWins          : { ..._loadedWins },
   winsLabel           : _loadedCfg.winsLabel !== undefined ? _loadedCfg.winsLabel : '-ჯ. ჩემ.',
+  coinRate            : _loadedCfg.coinRate  !== undefined ? _loadedCfg.coinRate  : 1,
+  coinUnit            : _loadedCfg.coinUnit  !== undefined ? _loadedCfg.coinUnit  : '₾',
   rshPrefix           : 'RSH:',  // customizable region-change command
   duration            : 120,
   timeLeft            : 0,
@@ -576,7 +585,18 @@ app.post('/api/set-wins-label', (req, res) => {
   if (typeof req.body.label !== 'string')
     return res.status(400).json({ error: 'label must be a string' });
   state.winsLabel = req.body.label;
-  saveJSON(CONFIG_FILE, { winsLabel: state.winsLabel });
+  saveConfig();
+  broadcast();
+  res.json({ ok: true });
+});
+
+// POST /api/set-coin-rate { rate, unit }
+app.post('/api/set-coin-rate', (req, res) => {
+  const rate = parseFloat(req.body.rate);
+  if (isNaN(rate) || rate <= 0) return res.status(400).json({ error: 'rate must be a positive number' });
+  state.coinRate = rate;
+  if (typeof req.body.unit === 'string') state.coinUnit = req.body.unit;
+  saveConfig();
   broadcast();
   res.json({ ok: true });
 });
